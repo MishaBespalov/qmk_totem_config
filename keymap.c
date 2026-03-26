@@ -143,46 +143,59 @@ static bool is_russian = false;
 
 // Require-prior-idle: mod-tap is forced to tap if pressed within this many ms
 // of the previous keypress (prevents accidental mods during fast typing).
-#define PRIOR_IDLE_SHIFT 30
+#define PRIOR_IDLE_SHIFT 20
 #define PRIOR_IDLE_OTHER 150
 static uint16_t last_input_time = 0;
 
 // Minimum hold time before opposite-hand mod activates (ms).
-#define HOLD_TIME_SHIFT 10
+#define HOLD_TIME_SHIFT 5
 #define HOLD_TIME_OTHER 75
 
-// Timers for custom mod-taps
+// State for custom mod-taps — track which key owns the active mod
 static uint16_t custom_mt_timer;
-static bool custom_mt_mod_active = false;
+static uint16_t custom_mt_keycode = KC_NO;
+static uint8_t custom_mt_held_mod = 0;
 
 // Helper: custom mod-tap handler (with require-prior-idle)
 static bool handle_custom_mt(uint16_t keycode, keyrecord_t *record, uint8_t mod,
                              uint16_t tap_kc, uint16_t idle_ms) {
   if (record->event.pressed) {
+    // If another custom mod-tap still has a mod registered, release it first
+    if (custom_mt_held_mod != 0) {
+      unregister_mods(MOD_BIT(custom_mt_held_mod));
+      custom_mt_held_mod = 0;
+      custom_mt_keycode = KC_NO;
+    }
+
     // If typing was recent, skip the mod and just tap
     if (last_input_time != 0 &&
         TIMER_DIFF_16(record->event.time, last_input_time) < idle_ms) {
-      custom_mt_mod_active = false;
       tap_code16(tap_kc);
     } else {
       custom_mt_timer = timer_read();
-      custom_mt_mod_active = true;
+      custom_mt_keycode = keycode;
+      custom_mt_held_mod = mod;
       register_mods(MOD_BIT(mod));
     }
   } else {
-    if (custom_mt_mod_active) {
-      unregister_mods(MOD_BIT(mod));
+    // Only the key that registered the mod may unregister it
+    if (custom_mt_keycode == keycode && custom_mt_held_mod != 0) {
+      unregister_mods(MOD_BIT(custom_mt_held_mod));
       if (timer_elapsed(custom_mt_timer) < TAPPING_TERM) {
         // If base language is Russian but SYM_RU layer is no longer active,
         // the OS has already switched back to Russian. Briefly flip to English
         // so the tap produces the correct ASCII symbol.
-        bool need_lang_fix = is_russian && !layer_state_cmp(layer_state, _SYM_RU);
-        if (need_lang_fix) tap_code(KC_CAPS);
+        bool need_lang_fix =
+            is_russian && !layer_state_cmp(layer_state, _SYM_RU);
+        if (need_lang_fix)
+          tap_code(KC_CAPS);
         tap_code16(tap_kc);
-        if (need_lang_fix) tap_code(KC_CAPS);
+        if (need_lang_fix)
+          tap_code(KC_CAPS);
       }
+      custom_mt_held_mod = 0;
+      custom_mt_keycode = KC_NO;
     }
-    custom_mt_mod_active = false;
   }
   return false;
 }
@@ -339,11 +352,7 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 // ---------------------------------------------------------------------------
 
 enum combo_names {
-  COMBO_PASTE,  // paste (all layers, pos 23+24)
-  COMBO_COPY,   // copy (all layers, pos 22+23)
   COMBO_CAPS,   // CapsLock (all layers, pos 19+29+30)
-  COMBO_VIMA,   // A key for vim (RU layer, pos 35+36+37)
-  COMBO_LANG,   // language switch (pos 33+36: left+right thumb middle)
   COMBO_BOOT_L, // bootloader left  (pos 0+10+21: top 3 leftmost keys)
   COMBO_BOOT_R, // bootloader right (pos 9+19+30: top 3 rightmost keys)
   COMBO_LENGTH
@@ -351,39 +360,19 @@ enum combo_names {
 uint16_t COMBO_LEN = COMBO_LENGTH;
 
 // Combo key arrays (using EN layer keycodes since COMBO_ONLY_FROM_LAYER=0)
-const uint16_t PROGMEM paste_combo[] = {KC_X, KC_H, COMBO_END}; // pos 23+24
-const uint16_t PROGMEM copy_combo[] = {KC_Q, KC_X, COMBO_END};  // pos 22+23
 const uint16_t PROGMEM caps_combo[] = {GUI_I, KC_SCLN, KC_DOT,
                                        COMBO_END}; // pos 19+29+30
-const uint16_t PROGMEM lang_combo[] = {MO(_NAV), MO(_SYM_EN),
-                                       COMBO_END}; // pos 33+36
-const uint16_t PROGMEM vima_combo[] = {KC_ENT, MO(_SYM_EN), KC_BSPC,
-                                       COMBO_END}; // pos 35+36+37
 const uint16_t PROGMEM boot_l_combo[] = {KC_F, GUI_S, KC_Z,
                                          COMBO_END}; // pos 0+10+21 (left col)
 const uint16_t PROGMEM boot_r_combo[] = {KC_COMM, GUI_I, KC_DOT,
                                          COMBO_END}; // pos 9+19+30 (right col)
 
 combo_t key_combos[] = {
-    [COMBO_PASTE] = COMBO(paste_combo, LALT(LCTL(KC_9))),
-    [COMBO_COPY] = COMBO(copy_combo, RCTL(RALT(KC_8))),
     [COMBO_CAPS] = COMBO(caps_combo, KC_CAPS),
-    [COMBO_LANG] = COMBO(lang_combo, LANG_SW),
-    [COMBO_VIMA] = COMBO(vima_combo, KC_A),
     [COMBO_BOOT_L] = COMBO(boot_l_combo, QK_BOOT),
     [COMBO_BOOT_R] = COMBO(boot_r_combo, QK_BOOT),
 };
 
-// Layer-restrict certain combos
-bool combo_should_trigger(uint16_t combo_index, combo_t *combo,
-                          uint16_t keycode, keyrecord_t *record) {
-  switch (combo_index) {
-  case COMBO_VIMA:
-    return (get_highest_layer(layer_state) == _RU);
-  default:
-    return true;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Keymap
@@ -457,14 +446,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      * NAV - Navigation / Numbers
      *
      *          |  1 |  2 |  3 |  4 |  5 |    |  6 |  7 |  8 |  9 |  0 |
-     *          | GUI| ALT| SFT| CTL|CSTab|    |    |C<- |S dn|A up|G ->|
-     *    |    ||WhUp|WhDn|RClk|LClk|CTab|    |    |    |  ^ |    |    || TAB|
+     *          | GUI| ALT| SFT| CTL|CSTab|    |COPY|C<- |S dn|A up|G ->|
+     *    |    ||WhUp|WhDn|RClk|LClk|CTab|    |PSTE|    |LANG|    |    || TAB|
      *                    |    |    |    |    |S-ENT|SYE | BSP|
      */
     [_NAV] =
         LAYOUT(KC_1, KC_2, KC_3, KC_4, KC_5, KC_6, KC_7, KC_8, KC_9, KC_0,
-               KC_LGUI, KC_LALT, KC_LSFT, KC_LCTL, C(S(KC_TAB)), KC_NO, CTL_LFT,
+               KC_LGUI, KC_LALT, KC_LSFT, KC_LCTL, C(S(KC_TAB)), RCTL(RALT(KC_8)), CTL_LFT,
                SFT_DWN, ALT_UP, GUI_RGT, KC_NO, MS_WHLU, MS_WHLD, MS_BTN2,
-               MS_BTN1, C(KC_TAB), KC_NO, KC_NO, KC_CIRC, KC_NO, KC_NO, KC_TAB,
+               MS_BTN1, C(KC_TAB), LALT(LCTL(KC_9)), KC_NO, LANG_SW, KC_NO, KC_NO, KC_TAB,
                KC_TRNS, KC_NO, KC_TRNS, S(KC_ENT), MO(_SYM_EN), KC_TRNS),
 };
