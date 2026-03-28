@@ -91,30 +91,24 @@ enum layers {
 // EN base layer
 #define GUI_S LGUI_T(KC_S)
 #define ALT_T_ LALT_T(KC_T)
-#define SFT_R LSFT_T(KC_R)
 #define CTL_N LCTL_T(KC_N)
 #define CTL_M RCTL_T(KC_M)
-#define SFT_A RSFT_T(KC_A)
 #define ALT_E LALT_T(KC_E)
 #define GUI_I RGUI_T(KC_I)
 
 // RU base layer
 #define GUI_RF LGUI_T(RU_F)
 #define ALT_RY LALT_T(RU_Y)
-#define SFT_RV LSFT_T(RU_V)
 #define CTL_RA LCTL_T(RU_A)
 #define CTL_RO RCTL_T(RU_O)
-#define SFT_RL RSFT_T(RU_L)
 #define ALT_RD LALT_T(RU_D)
 #define GUI_RZH RGUI_T(RU_ZH)
 
 // SYM_EN layer (keys that work with standard MT)
 #define GUI_BSL LGUI_T(KC_BSLS)
-#define SFT_MIN LSFT_T(KC_MINS)
 
 // NAV layer
 #define CTL_LFT RCTL_T(KC_LEFT)
-#define SFT_DWN RSFT_T(KC_DOWN)
 #define ALT_UP LALT_T(KC_UP)
 #define GUI_RGT RGUI_T(KC_RGHT)
 
@@ -126,7 +120,6 @@ enum custom_keycodes {
   // Custom mod-taps for shifted keycodes (can't use standard MT)
   ALT_LPRN = SAFE_RANGE, // hold = LALT,  tap = (
   CTL_RPRN,              // hold = LCTRL, tap = )
-  SFT_QUES,              // hold = RSHFT, tap = ?
   GUI_COLN,              // hold = RGUI,  tap = :
   CTL_LCBR,              // hold = RCTRL, tap = {
   ALT_RCBR,              // hold = LALT,  tap = }
@@ -143,13 +136,13 @@ static bool is_russian = false;
 
 // Require-prior-idle: mod-tap is forced to tap if pressed within this many ms
 // of the previous keypress (prevents accidental mods during fast typing).
-#define PRIOR_IDLE_SHIFT 20
-#define PRIOR_IDLE_OTHER 150
+#define PRIOR_IDLE_SHIFT 150
+#define PRIOR_IDLE_OTHER 200
 static uint16_t last_input_time = 0;
 
 // Minimum hold time before opposite-hand mod activates (ms).
-#define HOLD_TIME_SHIFT 5
-#define HOLD_TIME_OTHER 75
+#define HOLD_TIME_SHIFT 200
+#define HOLD_TIME_OTHER 250
 
 // State for custom mod-taps — track which key owns the active mod
 static uint16_t custom_mt_timer;
@@ -261,10 +254,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     result =
         handle_custom_mt(keycode, record, KC_LCTL, KC_RPRN, PRIOR_IDLE_OTHER);
     break;
-  case SFT_QUES:
-    result = handle_custom_mt(keycode, record, KC_RSFT, S(KC_SLSH),
-                              PRIOR_IDLE_SHIFT);
-    break;
   case GUI_COLN:
     result = handle_custom_mt(keycode, record, KC_RGUI, S(KC_SCLN),
                               PRIOR_IDLE_OTHER);
@@ -373,7 +362,6 @@ combo_t key_combos[] = {
     [COMBO_BOOT_R] = COMBO(boot_r_combo, QK_BOOT),
 };
 
-
 // ---------------------------------------------------------------------------
 // Keymap
 // ---------------------------------------------------------------------------
@@ -384,44 +372,44 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      * EN - English base layer
      *
      *          |  F |  D |  L |  B |  V |    |  J |  G |  O |  U |  , |
-     *          |Gs  |At  |Sr  |Cn  |  K |    |  Y |Cm  |Sa  |Ae  |Gi  |
-     *    |    || Z  |  Q |  X |  H |  P |    |  W |  C |  ' |  ; |  . || TAB|
+     *          |Gs  |At  |  R |Cn  |  K |    |  Y |Cm  |  A |Ae  |Gi  |
+     *    |LSFT|| Z  |  Q |  X |  H |  P |    |  W |  C |  ' |  ; |  . ||RSFT|
      *                    | SPC|NAV | ESC|    | ENT|SYM | BSP|
      */
     [_EN] = LAYOUT(KC_F, KC_D, KC_L, KC_B, KC_V, KC_J, KC_G, KC_O, KC_U,
-                   KC_COMM, GUI_S, ALT_T_, SFT_R, CTL_N, KC_K, KC_Y, CTL_M,
-                   SFT_A, ALT_E, GUI_I, KC_NO, KC_Z, KC_Q, KC_X, KC_H, KC_P,
-                   KC_W, KC_C, KC_QUOT, KC_SCLN, KC_DOT, KC_TAB, KC_SPC,
-                   MO(_NAV), KC_ESC, KC_ENT, MO(_SYM_EN), KC_BSPC),
+                   KC_COMM, GUI_S, ALT_T_, KC_R, CTL_N, KC_K, KC_Y, CTL_M, KC_A,
+                   ALT_E, GUI_I, KC_LSFT, KC_Z, KC_Q, KC_X, KC_H, KC_P, KC_W,
+                   KC_C, KC_QUOT, KC_SCLN, KC_DOT, KC_RSFT, KC_SPC, MO(_NAV),
+                   KC_ESC, KC_ENT, MO(_SYM_EN), KC_BSPC),
 
     /*
      * RU - Russian base layer (OS must be in Russian mode)
      *
      *          |  й |  ц |  у |  к |  е |    |  н |  г |  ш |  щ |  з |
-     *          |Gф  |Aы  |Sв  |Cа  |  п |    |  р |Cо  |Sл  |Aд  |Gж  |
-     *    | х  || я  |  ч |  с |  м |  и |    |  т |  ь |  б |  ю |  э || TAB|
+     *          |Gф  |Aы  |  в |Cа  |  п |    |  р |Cо  |  л |Aд  |Gж  |
+     *    |LSFT|| я  |  ч |  с |  м |  и |    |  т |  ь |  б |  ю |  э ||RSFT|
      *                    | SPC|NAV | ESC|    | ENT|SYR | BSP|
      */
     [_RU] = LAYOUT(RU_J, RU_TS, RU_U, RU_K, RU_IE, RU_N, RU_G, RU_SH, RU_SCH,
-                   RU_Z, GUI_RF, ALT_RY, SFT_RV, CTL_RA, RU_P, RU_R, CTL_RO,
-                   SFT_RL, ALT_RD, GUI_RZH, RU_HA, RU_YA, RU_CH, RU_S, RU_M,
-                   RU_I, RU_T, RU_SS, RU_B, RU_YU, RU_E, KC_TAB, KC_SPC,
-                   MO(_NAV), KC_ESC, KC_ENT, MO(_SYM_RU), KC_BSPC),
+                   RU_Z, GUI_RF, ALT_RY, RU_V, CTL_RA, RU_P, RU_R, CTL_RO, RU_L,
+                   ALT_RD, GUI_RZH, KC_LSFT, RU_YA, RU_CH, RU_S, RU_M, RU_I,
+                   RU_T, RU_SS, RU_B, RU_YU, RU_E, KC_RSFT, KC_SPC, MO(_NAV),
+                   KC_ESC, KC_ENT, MO(_SYM_RU), KC_BSPC),
 
     /*
      * SYM_EN - Symbols (English OS mode)
      *
      *          |  ~ |  < |  = |  > |  ! |    |  $ |  [ |  _ |  ] |  , |
-     *          |G\  |A(  |S-  |C)  |  + |    |  % |C{  |S?  |A}  |G:  |
-     *    |    || #  |  * |  ` |  / |  & |    |  @ |  | |  " |  ; |  . || TAB|
+     *          |G\  |A(  |  - |C)  |  + |    |  % |C{  |  ? |A}  |G:  |
+     *    |LSFT|| #  |  * |  ` |  / |  & |    |  @ |  | |  " |  ; |  . ||RSFT|
      *                    |    |NAV |    |    |    |    |    |
      */
     [_SYM_EN] = LAYOUT(
         KC_TILD, KC_LT, KC_EQL, KC_GT, KC_EXLM, KC_DLR, KC_LBRC, KC_UNDS,
-        KC_RBRC, KC_COMM, GUI_BSL, ALT_LPRN, SFT_MIN, CTL_RPRN, KC_PLUS,
-        KC_PERC, CTL_LCBR, SFT_QUES, ALT_RCBR, GUI_COLN, KC_NO, KC_HASH,
+        KC_RBRC, KC_COMM, GUI_BSL, ALT_LPRN, KC_MINS, CTL_RPRN, KC_PLUS,
+        KC_PERC, CTL_LCBR, S(KC_SLSH), ALT_RCBR, GUI_COLN, KC_LSFT, KC_HASH,
         KC_ASTR, KC_GRV, KC_SLSH, KC_AMPR, KC_AT, KC_PIPE, KC_DQUO, KC_SCLN,
-        KC_DOT, KC_TAB, KC_TRNS, MO(_NAV), KC_TRNS, KC_TRNS, KC_NO, KC_TRNS),
+        KC_DOT, KC_RSFT, KC_TRNS, MO(_NAV), KC_TRNS, KC_TRNS, KC_NO, KC_TRNS),
 
     /*
      * SYM_RU - Symbols (Russian OS mode)
@@ -431,29 +419,29 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      * while this layer is active; RU keys briefly flip back.
      *
      *          |  ~ |  < |  = |  > |  ! |    |  $ |  х |  ё |  ъ |  , |
-     *          |G\  |A(  |S-  |C)  |  + |    |  % |C{  |S?  |A}  |G:  |
-     *    |    || #  |  * |  ` |  / |  & |    |  @ |  | |  " |  ; |  . || TAB|
+     *          |G\  |A(  |  - |C)  |  + |    |  % |C{  |  ? |A}  |G:  |
+     *    |LSFT|| #  |  * |  ` |  / |  & |    |  @ |  | |  " |  ; |  . ||RSFT|
      *                    |    |NAV |    |    |    |    |    |
      */
     [_SYM_RU] = LAYOUT(
         KC_TILD, KC_LT, KC_EQL, KC_GT, KC_EXLM, KC_DLR, RU_HA_KEY, RU_IO_KEY,
-        RU_HSG_KEY, KC_COMM, GUI_BSL, ALT_LPRN, SFT_MIN, CTL_RPRN, KC_PLUS,
-        KC_PERC, CTL_LCBR, SFT_QUES, ALT_RCBR, GUI_COLN, KC_NO, KC_HASH,
+        RU_HSG_KEY, KC_COMM, GUI_BSL, ALT_LPRN, KC_MINS, CTL_RPRN, KC_PLUS,
+        KC_PERC, CTL_LCBR, S(KC_SLSH), ALT_RCBR, GUI_COLN, KC_LSFT, KC_HASH,
         KC_ASTR, KC_GRV, KC_SLSH, KC_AMPR, KC_AT, KC_PIPE, KC_DQUO, KC_SCLN,
-        KC_DOT, KC_TAB, KC_TRNS, MO(_NAV), KC_TRNS, KC_TRNS, KC_NO, KC_TRNS),
+        KC_DOT, KC_RSFT, KC_TRNS, MO(_NAV), KC_TRNS, KC_TRNS, KC_NO, KC_TRNS),
 
     /*
      * NAV - Navigation / Numbers
      *
      *          |  1 |  2 |  3 |  4 |  5 |    |  6 |  7 |  8 |  9 |  0 |
-     *          | GUI| ALT| SFT| CTL|CSTab|    |COPY|C<- |S dn|A up|G ->|
-     *    |    ||WhUp|WhDn|RClk|LClk|CTab|    |PSTE|    |LANG|    |    || TAB|
+     *          | GUI| ALT| SFT| CTL|CSTab|    |COPY|C<- | dwn|A up|G ->|
+     *    |LSFT||WhUp|WhDn|RClk|LClk|CTab|    |PSTE| TAB|LANG|    |    ||RSFT|
      *                    |    |    |    |    |S-ENT|SYE | BSP|
      */
-    [_NAV] =
-        LAYOUT(KC_1, KC_2, KC_3, KC_4, KC_5, KC_6, KC_7, KC_8, KC_9, KC_0,
-               KC_LGUI, KC_LALT, KC_LSFT, KC_LCTL, C(S(KC_TAB)), RCTL(RALT(KC_8)), CTL_LFT,
-               SFT_DWN, ALT_UP, GUI_RGT, KC_NO, MS_WHLU, MS_WHLD, MS_BTN2,
-               MS_BTN1, C(KC_TAB), LALT(LCTL(KC_9)), KC_NO, LANG_SW, KC_NO, KC_NO, KC_TAB,
-               KC_TRNS, KC_NO, KC_TRNS, S(KC_ENT), MO(_SYM_EN), KC_TRNS),
+    [_NAV] = LAYOUT(KC_1, KC_2, KC_3, KC_4, KC_5, KC_6, KC_7, KC_8, KC_9, KC_0,
+                    KC_LGUI, KC_LALT, KC_LSFT, KC_LCTL, C(S(KC_TAB)),
+                    RCTL(RALT(KC_8)), CTL_LFT, KC_DOWN, ALT_UP, GUI_RGT,
+                    KC_LSFT, MS_WHLU, MS_WHLD, MS_BTN2, MS_BTN1, C(KC_TAB),
+                    LALT(LCTL(KC_9)), KC_TAB, LANG_SW, KC_NO, KC_NO, KC_RSFT,
+                    KC_TRNS, KC_NO, KC_TRNS, S(KC_ENT), MO(_SYM_EN), KC_TRNS),
 };
